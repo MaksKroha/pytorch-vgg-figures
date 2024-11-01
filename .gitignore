@@ -1,0 +1,2 @@
+dataset/mnist/raw/
+parameters/model_state_dict.pt
