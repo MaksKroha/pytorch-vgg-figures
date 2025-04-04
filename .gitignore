@@ -1,4 +1,5 @@
 dataset/mnist/raw/
-parameters/model_state_dict.pt
+models/model_state_dict.pt
 .idea/
 __pycache__/
+models/
