@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drawing 28x28</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #604652;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        h1 {
+            color: #D29F80;
+            text-align: center;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            letter-spacing: 2px;
+        }
+
+        .canvas-container {
+            background: #97866A;
+            padding: 1.5rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: transform 0.3s;
+        }
+
+        canvas {
+            border-radius: 16px;
+            background: white;
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.1);
+            cursor: crosshair;
+            width: 100%;
+            height: auto;
+            max-width: 280px;
+        }
+
+        .button-container {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 12px;
+            background: #D29F80;
+            color: #604652;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:hover {
+            background: #97866A;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+            background: #735557;
+        }
+
+        #result {
+            background: #735557;
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            min-width: 200px;
+            text-align: center;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem;
+                gap: 1.5rem;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .canvas-container {
+                padding: 1rem;
+            }
+
+            button {
+                padding: 0.8rem 1.5rem;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<h1>Draw here (28x28)</h1>
+
+<div class="canvas-container">
+    <canvas id="canvas" width="280" height="280"></canvas>
+</div>
+
+<div class="button-container">
+    <button onclick="sendData()">Process</button>
+    <button onclick="clearCanvas()">Clear</button>
+</div>
+
+<p id="result"></p>
+
+<script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const size = 28;
+    const pixelSize = canvas.width / size;
+
+    let drawing = false;
+    let pixels = Array.from({length: size}, () => Array(size).fill(0));
+    let lastX = -1;
+    let lastY = -1;
+
+    canvas.addEventListener('mousedown', (e) => {
+        drawing = true;
+        const {x, y} = getCursorPosition(e);
+        drawPixel(x, y);
+    });
+
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseleave', () => drawing = false);
+    canvas.addEventListener('mousemove', draw);
+
+    function getCursorPosition(e) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: Math.floor((e.clientX - rect.left) / pixelSize),
+            y: Math.floor((e.clientY - rect.top) / pixelSize)
+        };
+    }
+
+    function drawPixel(x, y) {
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx >= 0 && nx < size && ny >= 0 && ny < size) {
+                    pixels[ny][nx] = 1;
+                    ctx.fillStyle = 'black';
+                    ctx.fillRect(nx * pixelSize, ny * pixelSize, pixelSize, pixelSize);
+                }
+            }
+        }
+    }
+
+    function draw(e) {
+        if (!drawing) return;
+
+        const {x, y} = getCursorPosition(e);
+
+        if (lastX !== -1 && lastY !== -1) {
+            const dx = x - lastX;
+            const dy = y - lastY;
+            const steps = Math.max(Math.abs(dx), Math.abs(dy));
+
+            for (let i = 0; i <= steps; i++) {
+                const tx = lastX + (dx * i) / steps;
+                const ty = lastY + (dy * i) / steps;
+                drawPixel(Math.round(tx), Math.round(ty));
+            }
+        }
+
+        drawPixel(x, y);
+        lastX = x;
+        lastY = y;
+    }
+
+    function sendData() {
+        fetch('/process/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({grid: pixels})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.result !== undefined) {
+                    document.getElementById('result').innerText = `grid: ${data.result}`;
+                } else {
+                    document.getElementById('result').innerText = `error: ${data.error}`;
+                }
+            });
+    }
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pixels = Array.from({ length: size }, () => Array(size).fill(0));
+        lastX = -1;
+        lastY = -1;
+        document.getElementById('result').innerText = '';
+    }
+
+    canvas.addEventListener('mouseup', () => {
+        drawing = false;
+        lastX = -1;
+        lastY = -1;
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        drawing = false;
+        lastX = -1;
+        lastY = -1;
+    });
+</script>
+</body>
+</html>

@@ -21,12 +21,21 @@ def evaluate_dataloader(model: CNN, data_loader: DataLoader, test_img_num):
         if i_image >= test_img_num:
             break
 
-def evaluate_tensor(model: CNN, image_tensor):
+def evaluate_array(model: CNN, array):
     model.eval()
+    tensor = torch.tensor(array, dtype=torch.float)
 
-    # TODO: checking image_tensor shape
+    if tensor.shape[0] != 28 and tensor.shape[1] != 28:
+        print("tensor must be 28x28")
+        return torch.tensor([0 * 10])
 
-    logits = model(image_tensor)
+    tensor = torch.reshape(tensor, (1,1,28,28))
+
+
+    logits = model(tensor)
     activated = softmax(logits, dim=1)
 
-    return activated
+    val = torch.argmax(activated).item()
+    prob = round(torch.max(activated).item() * 100, 2)
+
+    return f"{val}  {prob}%"
